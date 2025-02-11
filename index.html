@@ -67,6 +67,9 @@
         const OBSTACLE_SIZE = CANVAS_SIZE / 15;
         const GAME_DURATION = 22; // 22 seconds
 
+        const WINDOW_COUNT = 3;
+        const COLUMN_COUNT = 4;
+        
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const leftButton = document.getElementById('leftButton');
@@ -252,20 +255,59 @@
             ctx.restore();
         }
 
-        function drawBackground() {
-            const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_SIZE);
-            gradient.addColorStop(0, '#FFFACD');
-            gradient.addColorStop(1, '#FFFFFF');
-            ctx.fillStyle = gradient;
+                function drawBackground() {
+            // 背景
+            ctx.fillStyle = '#f2e8c9';
             ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
-            // Draw pile of coins at the bottom
-            ctx.fillStyle = '#FFD700';
+            // 天井
+            ctx.fillStyle = '#e6d5a5';
             ctx.beginPath();
-            ctx.moveTo(0, CANVAS_SIZE);
-            ctx.quadraticCurveTo(CANVAS_SIZE / 4, CANVAS_SIZE - 50, CANVAS_SIZE / 2, CANVAS_SIZE - 20);
-            ctx.quadraticCurveTo(CANVAS_SIZE * 3 / 4, CANVAS_SIZE - 50, CANVAS_SIZE, CANVAS_SIZE);
+            ctx.ellipse(CANVAS_SIZE / 2, 0, CANVAS_SIZE / 2, CANVAS_SIZE / 3, 0, 0, Math.PI);
             ctx.fill();
+
+            // シャンデリア
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.moveTo(CANVAS_SIZE / 2, CANVAS_SIZE / 6);
+            ctx.lineTo(CANVAS_SIZE / 2 - 40, CANVAS_SIZE / 3);
+            ctx.lineTo(CANVAS_SIZE / 2 + 40, CANVAS_SIZE / 3);
+            ctx.closePath();
+            ctx.fill();
+
+            // 窓
+            for (let i = 0; i < WINDOW_COUNT; i++) {
+                const x = CANVAS_SIZE * (i + 1) / (WINDOW_COUNT + 1);
+                ctx.fillStyle = '#87CEEB';
+                ctx.fillRect(x - 40, CANVAS_SIZE / 3, 80, 160);
+                
+                // 窓枠
+                ctx.strokeStyle = '#8B4513';
+                ctx.lineWidth = 5;
+                ctx.strokeRect(x - 40, CANVAS_SIZE / 3, 80, 160);
+            }
+
+            // 柱
+            for (let i = 0; i < COLUMN_COUNT; i++) {
+                const x = CANVAS_SIZE * (i + 1) / (COLUMN_COUNT + 1);
+                ctx.fillStyle = '#D2B48C';
+                ctx.fillRect(x - 10, CANVAS_SIZE / 3, 20, CANVAS_SIZE * 2 / 3);
+            }
+
+            // バルコニー
+            ctx.fillStyle = '#D2B48C';
+            ctx.fillRect(0, CANVAS_SIZE - 40, CANVAS_SIZE, 40);
+
+            // 手すり
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 3;
+            for (let i = 0; i < 20; i++) {
+                const x = CANVAS_SIZE * i / 19;
+                ctx.beginPath();
+                ctx.moveTo(x, CANVAS_SIZE - 40);
+                ctx.lineTo(x, CANVAS_SIZE - 10);
+                ctx.stroke();
+            }
         }
 
         function drawScore() {
