@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赤ずきんにゃんこのコイン大作戦</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100vmin;
+            height: 100vmin;
+            max-width: 600px;
+            max-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+        #gameCanvas {
+            width: 100%;
+            height: calc(100% - 80px);
+            border: 2px solid #333;
+            box-sizing: border-box;
+        }
+        #controls {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            height: 80px;
+        }
+        .controlButton {
+            width: 48%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 2px solid #333;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            cursor: pointer;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="controls">
+            <div id="leftButton" class="controlButton">←</div>
+            <div id="rightButton" class="controlButton">→</div>
+        </div>
+    </div>
+    <script>
+        const CANVAS_SIZE = Math.min(window.innerWidth, window.innerHeight) - 80;
+        const PLAYER_SIZE = CANVAS_SIZE / 8;
+        const PLAYER_SPEED = CANVAS_SIZE / 120;
+        const COIN_SIZE = CANVAS_SIZE / 20;
+        const OBSTACLE_SIZE = CANVAS_SIZE / 15;
+        const GAME_DURATION = 60; // 60 seconds
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const leftButton = document.getElementById('leftButton');
+        const rightButton = document.getElementById('rightButton');
+
+        canvas.width = CANVAS_SIZE;
+        canvas.height = CANVAS_SIZE;
+
+        const player = {
+            x: CANVAS_SIZE / 2 - PLAYER_SIZE / 2,
+            y: CANVAS_SIZE - PLAYER_SIZE - 10,
+            width: PLAYER_SIZE,
+            height: PLAYER_SIZE,
+            speed: 0,
+            isMoving: false,
+            direction: 1,
+            blinkTimer: 0
+        };
+
+        let coins = [];
+        let obstacles = [];
+        let score = 0;
+        let timeLeft = GAME_DURATION;
+        let gameOver = false;
+
+        function createCoin() {
+            if (coins.length < 5) {
+                coins.push({
+                    x: Math.random() * (CANVAS_SIZE - COIN_SIZE),
+                    y: -COIN_SIZE,
+                    speed: CANVAS_SIZE / (200 + Math.random() * 100),
+                    rotation: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        function createObstacle() {
+            if (obstacles.length < 3) {
+                obstacles.push({
+                    x: Math.random() * (CANVAS_SIZE - OBSTACLE_SIZE),
+                    y: -OBSTACLE_SIZE,
+                    speed: CANVAS_SIZE / (180 + Math.random() * 60),
+                    rotation: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+            
+            // Body
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, player.width / 2, player.height / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Red part
+            ctx.fillStyle = '#FF4136';
+            ctx.beginPath();
+            ctx.ellipse(0, -player.height / 4, player.width / 2, player.height / 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Face
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.ellipse(0, -player.height / 8, player.width / 3, player.height / 6, 0, 0, Math.PI);
+            ctx.fill();
+
+            // Eyes
+            ctx.fillStyle = '#FFFFFF';
+            const eyeSize = player.width / 8;
+            const eyeY = -player.height / 4;
+            ctx.beginPath();
+            ctx.ellipse(-player.width / 5, eyeY, eyeSize, eyeSize, 0, 0, Math.PI * 2);
+            ctx.ellipse(player.width / 5, eyeY, eyeSize, eyeSize, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pupils
+            ctx.fillStyle = '#FF4136';
+            const pupilSize = eyeSize / 2;
+            ctx.beginPath();
+            ctx.ellipse(-player.width / 5, eyeY, pupilSize, pupilSize, 0, 0, Math.PI * 2);
+            ctx.ellipse(player.width / 5, eyeY, pupilSize, pupilSize, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Blinking
+            player.blinkTimer++;
+            if (player.blinkTimer > 120) {
+                ctx.fillStyle = '#FF4136';
+                ctx.beginPath();
+                ctx.ellipse(-player.width / 5, eyeY, eyeSize, eyeSize / 4, 0, 0, Math.PI * 2);
+                ctx.ellipse(player.width / 5, eyeY, eyeSize, eyeSize / 4, 0, 0, Math.PI * 2);
+                ctx.fill();
+                if (player.blinkTimer > 125) {
+                    player.blinkTimer = 0;
+                }
+            }
+
+            // Ears
+            ctx.fillStyle = '#FF4136';
+            ctx.beginPath();
+            ctx.moveTo(-player.width / 3, -player.height / 2);
+            ctx.lineTo(-player.width / 6, -player.height * 3 / 4);
+            ctx.lineTo(0, -player.height / 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(player.width / 3, -player.height / 2);
+            ctx.lineTo(player.width / 6, -player.height * 3 / 4);
+            ctx.lineTo(0, -player.height / 2);
+            ctx.fill();
+
+            // Scarf
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.ellipse(player.width / 3, player.height / 4, player.width / 6, player.height / 8, Math.PI / 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawCoin(coin) {
+            ctx.save();
+            ctx.translate(coin.x + COIN_SIZE / 2, coin.y + COIN_SIZE / 2);
+            ctx.rotate(coin.rotation);
+            
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, COIN_SIZE / 2, COIN_SIZE / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#DAA520';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-COIN_SIZE / 4, 0);
+            ctx.lineTo(COIN_SIZE / 4, 0);
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+
+        function drawObstacle(obstacle) {
+            ctx.save();
+            ctx.translate(obstacle.x + OBSTACLE_SIZE / 2, obstacle.y + OBSTACLE_SIZE / 2);
+            ctx.rotate(obstacle.rotation);
+
+            // Main body
+            ctx.fillStyle = '#8B4513';
+            ctx.beginPath();
+            ctx.moveTo(-OBSTACLE_SIZE / 2, OBSTACLE_SIZE / 2);
+            ctx.quadraticCurveTo(-OBSTACLE_SIZE / 2, -OBSTACLE_SIZE / 2, 0, -OBSTACLE_SIZE / 2);
+            ctx.quadraticCurveTo(OBSTACLE_SIZE / 2, -OBSTACLE_SIZE / 2, OBSTACLE_SIZE / 2, OBSTACLE_SIZE / 2);
+            ctx.closePath();
+            ctx.fill();
+
+            // Highlight
+            ctx.fillStyle = '#D2691E';
+            ctx.beginPath();
+            ctx.ellipse(OBSTACLE_SIZE / 4, -OBSTACLE_SIZE / 4, OBSTACLE_SIZE / 6, OBSTACLE_SIZE / 8, Math.PI / 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(-OBSTACLE_SIZE / 6, 0, OBSTACLE_SIZE / 10, 0, Math.PI * 2);
+            ctx.arc(OBSTACLE_SIZE / 6, 0, OBSTACLE_SIZE / 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Smile
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, OBSTACLE_SIZE / 6, OBSTACLE_SIZE / 6, 0.2 * Math.PI, 0.8 * Math.PI);
+            ctx.stroke();
+
+            // Cheeks
+            ctx.fillStyle = '#FF6347';
+            ctx.beginPath();
+            ctx.arc(-OBSTACLE_SIZE / 3, OBSTACLE_SIZE / 6, OBSTACLE_SIZE / 10, 0, Math.PI * 2);
+            ctx.arc(OBSTACLE_SIZE / 3, OBSTACLE_SIZE / 6, OBSTACLE_SIZE / 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawBackground() {
+            const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_SIZE);
+            gradient.addColorStop(0, '#FFFACD');
+            gradient.addColorStop(1, '#FFFFFF');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            // Draw pile of coins at the bottom
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.moveTo(0, CANVAS_SIZE);
+            ctx.quadraticCurveTo(CANVAS_SIZE / 4, CANVAS_SIZE - 50, CANVAS_SIZE / 2, CANVAS_SIZE - 20);
+            ctx.quadraticCurveTo(CANVAS_SIZE * 3 / 4, CANVAS_SIZE - 50, CANVAS_SIZE, CANVAS_SIZE);
+            ctx.fill();
+        }
+
+        function drawScore() {
+            ctx.fillStyle = '#000';
+            ctx.font = `${CANVAS_SIZE / 30}px Arial`;
+            ctx.fillText(`コイン: ${score}`, 10, 30);
+            ctx.fillText(`残り時間: ${timeLeft}秒`, CANVAS_SIZE - 150, 30);
+        }
+
+        function update() {
+            if (gameOver) return;
+
+            // Update player position
+            if (player.isMoving) {
+                player.x += player.speed * player.direction;
+                player.x = Math.max(0, Math.min(CANVAS_SIZE - player.width, player.x));
+            }
+
+            coins.forEach(coin => {
+                coin.y += coin.speed;
+                coin.rotation += 0.1;
+                if (
+                    player.x < coin.x + COIN_SIZE &&
+                    player.x + player.width > coin.x &&
+                    player.y < coin.y + COIN_SIZE &&
+                    player.y + player.height > coin.y
+                ) {
+                    score++;
+                    coin.y = CANVAS_SIZE + COIN_SIZE;
+                }
+            });
+
+            obstacles.forEach(obstacle => {
+                obstacle.y += obstacle.speed;
+                obstacle.rotation += 0.05;
+                if (
+                    player.x < obstacle.x + OBSTACLE_SIZE &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + OBSTACLE_SIZE &&
+                    player.y + player.height > obstacle.y
+                ) {
+                    gameOver = true;
+                }
+            });
+
+            coins = coins.filter(coin => coin.y < CANVAS_SIZE);
+            obstacles = obstacles.filter(obstacle => obstacle.y < CANVAS_SIZE);
+
+            createCoin();
+            createObstacle();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            drawBackground();
+            coins.forEach(drawCoin);
+            obstacles.forEach(drawObstacle);
+            drawPlayer();
+            drawScore();
+
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                ctx.fillStyle = '#FFF';
+                ctx.font = `${CANVAS_SIZE / 15}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText('ゲームオーバー', CANVAS_SIZE / 2, CANVAS_SIZE / 2);
+                ctx.font = `${CANVAS_SIZE / 25}px Arial`;
+                ctx.fillText(`最終スコア: ${score}コイン`, CANVAS_SIZE / 2, CANVAS_SIZE / 2 + CANVAS_SIZE / 15);
+                ctx.fillText('もう一度プレイするにはクリックしてください', CANVAS_SIZE / 2, CANVAS_SIZE / 2 + CANVAS_SIZE / 7.5);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+
+            if (!gameOver) {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function startGame() {
+            player.x = CANVAS_SIZE / 2 - PLAYER_SIZE / 2;
+            player.isMoving = false;
+            player.direction = 1;
+            coins = [];
+            obstacles = [];
+            score = 0;
+            timeLeft = GAME_DURATION;
+            gameOver = false;
+
+            gameLoop();
+
+            const timer = setInterval(() => {
+                if (gameOver) {
+                    clearInterval(timer);
+                    return;
+                }
+                timeLeft--;
+                if (timeLeft <= 0) {
+                    gameOver = true;
+                    clearInterval(timer);
+                }
+            }, 
+
+ 1000);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (gameOver) {
+                startGame();
+                return;
+            }
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    player.isMoving = true;
+                    player.speed = PLAYER_SPEED;
+                    player.direction = -1;
+                    break;
+                case 'ArrowRight':
+                    player.isMoving = true;
+                    player.speed = PLAYER_SPEED;
+                    player.direction = 1;
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                player.isMoving = false;
+            }
+        });
+
+        canvas.addEventListener('click', () => {
+            if (gameOver) {
+                startGame();
+            }
+        });
+
+        // Mobile controls
+        function handleTouchStart(direction) {
+            if (gameOver) {
+                startGame();
+                return;
+            }
+
+            player.isMoving = true;
+            player.speed = PLAYER_SPEED;
+            player.direction = direction === 'left' ? -1 : 1;
+        }
+
+        function handleTouchEnd() {
+            player.isMoving = false;
+        }
+
+        leftButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleTouchStart('left');
+        });
+
+        rightButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleTouchStart('right');
+        });
+
+        leftButton.addEventListener('touchend', handleTouchEnd);
+        rightButton.addEventListener('touchend', handleTouchEnd);
+
+        startGame();
+    </script>
+</body>
+</html>
